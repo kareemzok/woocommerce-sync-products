@@ -262,7 +262,9 @@ if (!class_exists('WC_products_sync')) :
                 $this->render_tabs($tab);
                 if ($this->check_if_woocoommerce_active()) {
                     ?>
-                    <form method="POST" action="" >
+            
+					<?php if(isset($_POST[$this->settings_id . '_mapping'])) { ?>
+					  <form method="POST" action="" >
                         <div class="postbox">
                             <div class="inside">
                                 <table class="form-table">
@@ -272,7 +274,20 @@ if (!class_exists('WC_products_sync')) :
                             </div>
                         </div>
                     </form>
+					<?php }else{  ?>
+					        <form method="POST" action="" >
+                        <div class="postbox">
+                            <div class="inside">
+                                <table class="form-table">
+                                    <?php $this->render_fields($tab); ?>
+                                </table>
+                                <?php $this->custom_button("start-mapping","mapping","Get started"); ?>
+                            </div>
+                        </div>
+                    </form>
+					<?php } ?>
                 </div>
+				
                 <?php
             } else {
 
@@ -331,18 +346,54 @@ if (!class_exists('WC_products_sync')) :
             </button>
             <?php
         }
+		
+		        /**
+         * Render the Submitt button
+         * @return void 
+         */
+        protected function custom_button($elem_id, $name, $title) {
+            ?>
+            <button type="submit" id="<?php echo $elem_id; ?>" name="<?php echo $this->settings_id; ?>_<?php echo $name ?>" class="button button-primary">
+                <?php _e($title, 'MY_PLUGIN_SLUG'); ?>
+            </button>
+            <?php
+        }
 
+     /**
+         * Render the dropdown list
+         * @return void 
+         */
+        protected function dropdown_list($elem_id, $data) {
+			
+            ?>
+			<select name="<?php echo $this->settings_id; ?>_<?php echo $elem_id ?>"  id="<?php echo $elem_id; ?>" class="" >
+			<?php foreach($data as $key => $value){ ?>
+			  <option value="<?php echo $key; ?>"><?php echo $value; ?></option>
+			<?php } ?>
+			</select>
+
+            <?php
+			
+			
+        }
+		
         /**
          * Save if the button for this menu is submitted
          * @return void 
          */
         protected function save_if_submit() {
+	
             if (isset($_POST[$this->settings_id . '_save'])) {
                 do_action('wordpressmenu_page_save_' . $this->settings_id);
             } elseif (isset($_POST[$this->settings_id . '_submit'])) {
-                $this->products_sync_process_import($_POST);
-                die();
-            }
+                //$this->products_sync_process_import($_POST);
+             
+
+            } elseif (isset($_POST[$this->settings_id . '_mapping'])) {
+				//$this->products_sync_process_mapping_fields($_POST);
+			}
+			
+			return;
         }
 
         /**
@@ -364,6 +415,49 @@ if (!class_exists('WC_products_sync')) :
 
             return array_merge($action_links, $links);
         }
+		
+		  /**
+         * Processing sync and add products from external link(resource)
+         * @param type $post_data data passed to process the sync (ex: api link)
+         */
+        function products_sync_process_mapping_fields($post_data) {
+            echo '<h3>Mapping fields</h3>' . '<br>';
+
+			
+            $data = $this->call_external_data_url($post_data);
+            $i = 0;
+	
+			$fields = array_keys(get_object_vars($data[0])); 
+			
+			?>
+
+			<table>
+			 <tbody>
+				  <?php 
+				  
+				  $product_fields = array(""=> "No match",
+				  "post_title"=>"Title",
+				  "post_content"=>"Description",
+				  "post_status"=>"Status",
+				  "_regular_price"=>"Regular price",
+				  "_price"=>"Price",
+				  "_sku"=>"Sku");
+				  
+					  foreach ($fields as $field) {
+						?>
+							<tr>
+							
+								<td><?php echo $field; ?></td> 
+								<td><?php $this->dropdown_list('product-fields', $product_fields);?></td>
+							</tr>
+				  <?php }  ?>
+			 </tbody>
+			</table>
+			<?php
+	
+        }
+		
+		
 
         /**
          * Processing sync and add products from external link(resource)
@@ -504,15 +598,22 @@ if (!class_exists('WC_products_sync')) :
     ));
 
     $readonly = true;
-    $css_background = "background-color:#D3D3D3";
 
-    $WC_products_sync->add_field(array(
-        'name' => 'field_api_link',
-        'title' => 'External link to sync product',
-        'desc' => 'This link can be changed from the Woocommerce integration ' . $links['setting'] . ' page',
-        'default' => get_option('field_api_link', $integration_variable['rest_api_link']),
-        'style' => 'width:30%;' . $css_background,
-        'readonly' => $readonly
-    ));
+    $css_background = "background-color:#D3D3D3";
+	if(!isset($_POST[$WC_products_sync->settings_id . '_mapping'])) { 
+		$WC_products_sync->add_field(array(
+			'name' => 'field_api_link',
+			'title' => 'External link to sync product',
+			'desc' => 'This link can be changed from the Woocommerce integration ' . $links['setting'] . ' page',
+			'default' => get_option('field_api_link', $integration_variable['rest_api_link']),
+			'style' => 'width:30%;' . $css_background,
+			'readonly' => $readonly
+		));
+	}
+	if(isset($_POST[$WC_products_sync->settings_id . '_mapping'])) { 
+
+		
+		$WC_products_sync->products_sync_process_mapping_fields($_POST);
+	}
 
 endif;
